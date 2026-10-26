@@ -10,6 +10,11 @@ test "fixtures match expected message type and validity" {
     ("fixtures/valid_pacs008.xml", @moonpay_flow.MessageKind::Pacs008, true),
     ("fixtures/valid_pacs002.xml", @moonpay_flow.MessageKind::Pacs002, true),
     ("fixtures/valid_camt053.xml", @moonpay_flow.MessageKind::Camt053, true),
+    ("fixtures/multi_account_camt053.xml", @moonpay_flow.MessageKind::Camt053, true),
+    ("fixtures/timeline_pain001.xml", @moonpay_flow.MessageKind::Pain001, true),
+    ("fixtures/timeline_status_1.xml", @moonpay_flow.MessageKind::Pain002, true),
+    ("fixtures/timeline_status_2.xml", @moonpay_flow.MessageKind::Pain002, true),
+    ("fixtures/timeline_pacs008.xml", @moonpay_flow.MessageKind::Pacs008, true),
   ]
   for item in cases {
     let path = item.0

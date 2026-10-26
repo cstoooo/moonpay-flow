@@ -41,6 +41,7 @@ pub struct DuplicateStatementEntry {
 ///|
 /// Independent audit result for one camt.053 bank statement.
 pub struct StatementAuditReport {
+  statement_id : String?
   account_iban : String?
   account_count : Int
   entry_count : Int
@@ -54,6 +55,13 @@ pub struct StatementAuditReport {
   balance_status : StatementBalanceStatus
   duplicate_entries : Array[DuplicateStatementEntry]
   diagnostics : Array[Diagnostic]
+}
+
+///|
+priv struct OwnedStatementBalance {
+  statement_id : String?
+  account_iban : String?
+  balance : StatementBalance
 }
 
 ///|
@@ -71,13 +79,15 @@ fn signed_balance_amount(amount : Decimal, direction : String) -> Decimal {
 }
 
 ///|
-fn parse_statement_balances(
+fn parse_statement_balances_with_owner(
   xml_text : String,
   diagnostics : Array[Diagnostic],
-) -> Array[StatementBalance] raise XmlParseError {
+) -> Array[OwnedStatementBalance] raise XmlParseError {
   let reader = XmlReader::from_string(xml_text)
   let path : Array[String] = []
-  let balances : Array[StatementBalance] = []
+  let balances : Array[OwnedStatementBalance] = []
+  let mut statement_id : String? = None
+  let mut account_iban : String? = None
   let mut in_balance = false
   let mut code : String? = None
   let mut amount_text : String? = None
@@ -87,6 +97,10 @@ fn parse_statement_balances(
     match reader.read_event().kind {
       Start(element) => {
         path.push(element.name)
+        if path_equals(path, ["Document", "BkToCstmrStmt", "Stmt"]) {
+          statement_id = None
+          account_iban = None
+        }
         if path_equals(path, ["Document", "BkToCstmrStmt", "Stmt", "Bal"]) {
           in_balance = true
           code = None
@@ -106,7 +120,13 @@ fn parse_statement_balances(
         let _ = path.remove(path.length() - 1)
       }
       Text(content) =>
-        if path_equals(path, [
+        if path_equals(path, ["Document", "BkToCstmrStmt", "Stmt", "Id"]) {
+          statement_id = Some(content)
+        } else if path_equals(path, [
+            "Document", "BkToCstmrStmt", "Stmt", "Acct", "Id", "IBAN",
+          ]) {
+          account_iban = Some(content)
+        } else if path_equals(path, [
             "Document", "BkToCstmrStmt", "Stmt", "Bal", "Tp", "CdOrPrtry", "Cd",
           ]) {
           code = Some(content)
@@ -165,13 +185,17 @@ fn parse_statement_balances(
                                 direction_value == "DBIT"
                               ) {
                               balances.push({
-                                code: balance_code,
-                                amount,
-                                currency: ccy,
-                                credit_debit: direction_value,
-                                signed_amount: signed_balance_amount(
-                                  amount, direction_value,
-                                ),
+                                statement_id,
+                                account_iban,
+                                balance: {
+                                  code: balance_code,
+                                  amount,
+                                  currency: ccy,
+                                  credit_debit: direction_value,
+                                  signed_amount: signed_balance_amount(
+                                    amount, direction_value,
+                                  ),
+                                },
                               })
                             }
                           _ => ()
@@ -203,6 +227,18 @@ fn parse_statement_balances(
       }
       Eof => break
     }
+  }
+  balances
+}
+
+///|
+fn parse_statement_balances(
+  xml_text : String,
+  diagnostics : Array[Diagnostic],
+) -> Array[StatementBalance] raise XmlParseError {
+  let balances : Array[StatementBalance] = []
+  for owned in parse_statement_balances_with_owner(xml_text, diagnostics) {
+    balances.push(owned.balance)
   }
   balances
 }
@@ -295,47 +331,40 @@ fn collect_duplicate_entries(
 }
 
 ///|
-/// Audit statement balances, movement totals, account scope and exact duplicates.
-pub fn statement_audit(
-  xml_text : String,
-) -> StatementAuditReport raise XmlParseError {
-  let fields = flatten_xml(xml_text)
-  let records = statement_records(xml_text)
+fn build_statement_audit_report(
+  statement_id : String?,
+  account_iban : String?,
+  account_count : Int,
+  records : Array[StatementRecord],
+  balances : Array[StatementBalance],
+  seed_diagnostics : Array[Diagnostic],
+  xml_entry_count : Int,
+) -> StatementAuditReport {
   let diagnostics : Array[Diagnostic] = []
-  let balances = parse_statement_balances(xml_text, diagnostics)
-  let account_ids : Map[String, Bool] = Map([])
-  let account_order : Array[String] = []
-  for field in fields {
-    if field.path.has_suffix("/Stmt/Acct/Id/IBAN") {
-      match field.text {
-        Some(value) =>
-          if value != "" && !account_ids.contains(value) {
-            account_ids.set(value, true)
-            account_order.push(value)
-          }
-        None => ()
-      }
-    }
-  }
-  let account_count = account_order.length()
-  let account_iban = if account_count > 0 {
-    Some(account_order[0])
-  } else {
-    None
+  for diagnostic in seed_diagnostics {
+    diagnostics.push(diagnostic)
   }
   if account_count == 0 {
     push_diagnostic(
-      diagnostics, "STATEMENT_ACCOUNT_MISSING", "Stmt/Acct/Id/IBAN", "Statement account IBAN is required for balance audit.",
+      diagnostics,
+      "STATEMENT_ACCOUNT_MISSING",
+      "Stmt/Acct/Id/IBAN",
+      "Statement account IBAN is required for balance audit.",
     )
   } else if account_count > 1 {
     push_diagnostic(
-      diagnostics, "MULTI_ACCOUNT_STATEMENT_UNSUPPORTED", "Stmt/Acct/Id/IBAN", "This version audits one statement account per file; multiple account IBANs were found.",
+      diagnostics,
+      "MULTI_ACCOUNT_STATEMENT_UNSUPPORTED",
+      "Stmt/Acct/Id/IBAN",
+      "This version audits one statement account per file; multiple account IBANs were found.",
     )
   }
-  let xml_entry_count = elements_by_suffix(fields, "/Ntry").length()
   if records.length() != xml_entry_count {
     push_diagnostic(
-      diagnostics, "STATEMENT_ENTRY_INCOMPLETE", "Ntry", "Each statement entry must contain an end-to-end ID, amount, currency and valid direction for audit.",
+      diagnostics,
+      "STATEMENT_ENTRY_INCOMPLETE",
+      "Ntry",
+      "Each statement entry must contain an end-to-end ID, amount, currency and valid direction for audit.",
     )
   }
   let currency_ids : Map[String, Bool] = Map([])
@@ -430,6 +459,7 @@ pub fn statement_audit(
   }
   let duplicate_entries = collect_duplicate_entries(records, diagnostics)
   {
+    statement_id,
     account_iban,
     account_count,
     entry_count: records.length(),
@@ -444,6 +474,51 @@ pub fn statement_audit(
     duplicate_entries,
     diagnostics,
   }
+}
+
+///|
+/// Audit statement balances, movement totals, account scope and exact duplicates.
+pub fn statement_audit(
+  xml_text : String,
+) -> StatementAuditReport raise XmlParseError {
+  let fields = flatten_xml(xml_text)
+  let records = statement_records(xml_text)
+  let diagnostics : Array[Diagnostic] = []
+  let balances = parse_statement_balances(xml_text, diagnostics)
+  let account_ids : Map[String, Bool] = Map([])
+  let account_order : Array[String] = []
+  for field in fields {
+    if field.path.has_suffix("/Stmt/Acct/Id/IBAN") {
+      match field.text {
+        Some(value) =>
+          if value != "" && !account_ids.contains(value) {
+            account_ids.set(value, true)
+            account_order.push(value)
+          }
+        None => ()
+      }
+    }
+  }
+  let account_count = account_order.length()
+  let account_iban = if account_count > 0 {
+    Some(account_order[0])
+  } else {
+    None
+  }
+  let statement_id = match first_text_by_suffix(fields, "/Stmt/Id") {
+    Some(value) => Some(value)
+    None => None
+  }
+  let xml_entry_count = elements_by_suffix(fields, "/Ntry").length()
+  build_statement_audit_report(
+    statement_id,
+    account_iban,
+    account_count,
+    records,
+    balances,
+    diagnostics,
+    xml_entry_count,
+  )
 }
 
 ///|
@@ -478,7 +553,12 @@ fn optional_decimal_to_json(value : Decimal?) -> Json {
 ///|
 pub fn StatementAuditReport::to_text(self : StatementAuditReport) -> String {
   let output = StringBuilder()
-  output.write_string("Bank statement audit\nAccount: ")
+  output.write_string("Bank statement audit\nStatement ID: ")
+  output.write_string(match self.statement_id {
+    Some(value) => value
+    None => "(missing)"
+  })
+  output.write_string("\nAccount: ")
   output.write_string(
     match self.account_iban {
       Some(value) => value
@@ -596,12 +676,17 @@ pub fn StatementAuditReport::to_json(self : StatementAuditReport) -> String {
       "message": diagnostic.message,
     })
   }
+  let statement_id : Json = match self.statement_id {
+    Some(value) => Json::string(value)
+    None => Json::null()
+  }
   let account_iban : Json = match self.account_iban {
     Some(value) => Json::string(value)
     None => Json::null()
   }
   let root = Map([])
   root.set("valid", Json::boolean(self.is_valid()))
+  root.set("statementId", statement_id)
   root.set("accountIban", account_iban)
   root.set("accountCount", Json::number(self.account_count.to_double()))
   root.set("entryCount", Json::number(self.entry_count.to_double()))
@@ -626,7 +711,12 @@ pub fn StatementAuditReport::to_markdown(self : StatementAuditReport) -> String 
   let output = StringBuilder()
   output.write_string("# Bank statement audit\n\n")
   output.write_string("| Field | Value |\n|---|---|\n")
-  output.write_string("| Account | `")
+  output.write_string("| Statement ID | `")
+  output.write_string(match self.statement_id {
+    Some(value) => value
+    None => "(missing)"
+  })
+  output.write_string("` |\n| Account | `")
   output.write_string(
     match self.account_iban {
       Some(value) => value

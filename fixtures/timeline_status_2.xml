@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pain.002.001.03">
+  <CstmrPmtStsRpt>
+    <GrpHdr><MsgId>TIMELINE-STATUS-002</MsgId><CreDtTm>2026-10-26T10:00:00Z</CreDtTm></GrpHdr>
+    <TxInfAndSts><OrgnlEndToEndId>TL-TX-A</OrgnlEndToEndId><OrgnlInstdAmt Ccy="EUR">100.00</OrgnlInstdAmt><TxSts>ACSC</TxSts></TxInfAndSts>
+    <TxInfAndSts>
+      <OrgnlEndToEndId>TL-TX-B</OrgnlEndToEndId>
+      <OrgnlInstdAmt Ccy="EUR">50.00</OrgnlInstdAmt>
+      <TxSts>RJCT</TxSts>
+      <StsRsnInf><Rsn><Cd>AC01</Cd></Rsn></StsRsnInf>
+    </TxInfAndSts>
+  </CstmrPmtStsRpt>
+</Document>

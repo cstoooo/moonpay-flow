@@ -1,5 +1,6 @@
 ///|
 pub struct StatementRecord {
+  statement_id : String?
   end_to_end_id : String
   amount : Decimal
   currency : String
@@ -65,6 +66,7 @@ pub fn statement_records(xml_text : String) -> Array[StatementRecord] raise XmlP
   let reader = XmlReader::from_string(xml_text)
   let path : Array[String] = []
   let records : Array[StatementRecord] = []
+  let mut statement_id : String? = None
   let mut account_iban : String? = None
   let mut in_entry = false
   let mut current_id : String? = None
@@ -76,6 +78,10 @@ pub fn statement_records(xml_text : String) -> Array[StatementRecord] raise XmlP
     match reader.read_event().kind {
       Start(element) => {
         path.push(element.name)
+        if path_equals(path, ["Document", "BkToCstmrStmt", "Stmt"]) {
+          statement_id = None
+          account_iban = None
+        }
         if path_equals(path, ["Document", "BkToCstmrStmt", "Stmt", "Ntry"]) {
           in_entry = true
           current_id = None
@@ -102,7 +108,9 @@ pub fn statement_records(xml_text : String) -> Array[StatementRecord] raise XmlP
         let _ = path.remove(path.length() - 1)
       }
       Text(content) => {
-        if path_equals(
+        if path_equals(path, ["Document", "BkToCstmrStmt", "Stmt", "Id"]) {
+          statement_id = Some(content)
+        } else if path_equals(
           path,
           ["Document", "BkToCstmrStmt", "Stmt", "Acct", "Id", "IBAN"],
         ) {
@@ -149,6 +157,7 @@ pub fn statement_records(xml_text : String) -> Array[StatementRecord] raise XmlP
                       match Decimal::parse(amount_text) {
                         Some(amount) =>
                           records.push({
+                            statement_id,
                             end_to_end_id: id,
                             amount,
                             currency,

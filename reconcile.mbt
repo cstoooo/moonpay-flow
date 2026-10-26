@@ -212,3 +212,49 @@ pub fn ReconciliationReport::to_markdown(self : ReconciliationReport) -> String 
   }
   output.to_string()
 }
+
+///|
+/// Extract payment records from a pacs.008 customer credit transfer.
+pub fn pacs008_payment_records(
+  xml_text : String,
+) -> Array[PaymentRecord] raise XmlParseError {
+  let fields = flatten_xml(xml_text)
+  let ids = texts_by_suffix(fields, "/CdtTrfTxInf/PmtId/EndToEndId")
+  let amounts = texts_by_suffix(fields, "/CdtTrfTxInf/IntrBkSttlmAmt")
+  let amount_elements = elements_by_suffix(fields, "/CdtTrfTxInf/IntrBkSttlmAmt")
+  let count = if ids.length() < amounts.length() {
+    ids.length()
+  } else {
+    amounts.length()
+  }
+  let records : Array[PaymentRecord] = []
+  for i = 0; i < count; i = i + 1 {
+    match Decimal::parse(amounts[i]) {
+      Some(amount) =>
+        match amount_elements[i].get_attribute("Ccy") {
+          Some(currency) => records.push({
+            end_to_end_id: ids[i],
+            amount,
+            currency,
+            debtor_iban: None,
+            creditor_iban: None,
+          })
+          None => ()
+        }
+      None => ()
+    }
+  }
+  records
+}
+
+///|
+/// Extract payment records from either pain.001 or pacs.008.
+pub fn payment_records_auto(
+  xml_text : String,
+) -> Array[PaymentRecord] raise XmlParseError {
+  match detect_message_kind(xml_text) {
+    Pain001 => pain001_payment_records(xml_text)
+    Pacs008 => pacs008_payment_records(xml_text)
+    _ => []
+  }
+}

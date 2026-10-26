@@ -11,14 +11,16 @@ MoonBit ISO 20022 payment lifecycle validator and reconciliation toolkit.
 - Flat XML field extractor in `flat_xml.mbt`
 - Multi-message validation in `message.mbt`
 - Payment reconciliation in `reconcile.mbt`
+- Multi-report payment status timeline in `status_timeline.mbt`
 - Bank statement balance and duplicate audit in `statement_audit.mbt`
+- Per-account statement portfolio audit in `statement_portfolio.mbt`
 - File input through `moonbitlang/x/fs`
 - CLI in `cmd/main`
-- 67 unit tests and 15 fixture messages
+- 100 unit tests and 20 fixture messages
 
 ## Status
 
-Version: 0.6.1
+Version: 0.7.0
 
 Current support: `pain.001`, `pain.002`, `pacs.008`, `pacs.002` and `camt.053`.
 
@@ -41,6 +43,8 @@ moon run cmd/main -- lifecycle fixtures/lifecycle_pain001.xml fixtures/lifecycle
 moon run cmd/main -- audit fixtures/balanced_camt053.xml
 moon run cmd/main -- audit fixtures/balance_mismatch_camt053.xml --format json
 moon run cmd/main -- audit fixtures/duplicate_camt053.xml --format markdown
+moon run cmd/main -- audit-portfolio fixtures/multi_account_camt053.xml
+moon run cmd/main -- timeline fixtures/timeline_pain001.xml fixtures/timeline_status_1.xml fixtures/timeline_status_2.xml
 ```
 
 ## Rules
@@ -69,7 +73,11 @@ moon run cmd/main -- audit fixtures/duplicate_camt053.xml --format markdown
 - Balance audit accepts `OPBD`/`PRCD` and `CLBD`/`ITBD`, checks balance currency and statement account scope, and reports the exact closing difference.
 - Exact duplicate statement entries are grouped by account, end-to-end ID, amount, currency, direction and reversal flag.
 - `audit` emits text, JSON or Markdown and keeps all monetary values as fixed-point strings.
-- Version boundaries, lifecycle and balance audit examples are documented in `docs/version-scope-and-cases.md` and `docs/statement-audit-cases.md`.
+- `audit-portfolio` groups entries and balances by both `Stmt/Id` and account IBAN, so one camt.053 file can contain multiple statements.
+- `timeline` merges any number of `pain.002` / `pacs.002` reports in chronological order and supports `pain.001` or `pacs.008` as the payment source.
+- Status timelines detect duplicate message IDs, duplicate events, same-time conflicting states, rejected/settled status regression, unknown status codes, orphan statuses, and original amount/currency mismatches.
+- The rule catalog contains 72 queryable checks through `--list-rules`.
+- Version boundaries and feature examples are documented in `docs/version-scope-and-cases.md`, `docs/statement-audit-cases.md`, `docs/status-timeline-cases.md` and `docs/multi-account-audit.md`.
 
 ## License
 

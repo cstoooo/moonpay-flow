@@ -15,3 +15,5 @@ moon run cmd/main -- lifecycle fixtures/lifecycle_pain001.xml fixtures/lifecycle
 moon run cmd/main -- audit fixtures/balanced_camt053.xml
 moon run cmd/main -- audit fixtures/balance_mismatch_camt053.xml
 moon run cmd/main -- audit fixtures/duplicate_camt053.xml
+moon run cmd/main -- audit-portfolio fixtures/multi_account_camt053.xml
+moon run cmd/main -- timeline fixtures/timeline_pain001.xml fixtures/timeline_status_1.xml fixtures/timeline_status_2.xml

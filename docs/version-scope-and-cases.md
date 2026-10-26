@@ -7,12 +7,12 @@
 | 报文 | 当前版本 | 已支持范围 | 暂不覆盖 |
 | --- | --- | --- | --- |
 | `pain.001` | `pain.001.001.03` | 消息头、付款指令、交易 ID、账户 IBAN、执行日期、金额、币种、BIC、控制金额 | 全部 XSD 校验、代理行链、附件、复杂地址结构 |
-| `pain.002` | `pain.002.001.03` | 原报文 ID、原交易 ID、交易状态、重复状态 | 原因码完整语义、批量状态汇总、拒绝回执模板 |
+| `pain.002` | `pain.002.001.03` | 原报文 ID、原交易 ID、交易状态、原因码、重复状态、多报告时间线 | 全部状态原因语义、批量汇总模板 |
 | `pacs.008` | `pacs.008.001.08` | 交易 ID、结算金额、币种 | 代理行链、费用承担、端到端路由、UETR 全链路 |
-| `pacs.002` | `pacs.002.001.10` | 原报文 ID、原交易 ID、交易状态 | 原因码完整语义、批量状态汇总 |
-| `camt.053` | `camt.053.001.08` | 对账条目、账户 IBAN、金额、币种、借贷方向、冲正标记、期初/期末余额、发生额汇总、精确重复流水 | 账期、利息、复杂交易明细、多账户分组 |
+| `pacs.002` | `pacs.002.001.10` | 原报文 ID、原交易 ID、交易状态、原因码、多报告时间线 | 全部状态原因语义、批量汇总模板 |
+| `camt.053` | `camt.053.001.08` | 对账条目、账户 IBAN、金额、币种、借贷方向、冲正标记、期初/期末余额、发生额汇总、精确重复流水、多 `Stmt` 分账户审计 | 账期、利息、复杂交易明细 |
 
-当前一个 `camt.053` 文件按一个对账单账户处理；多账户文件需要拆分为多个文件，后续再扩展为按 `Stmt` 分组解析。
+单账户命令 `audit` 仍按一个对账单账户处理；`audit-portfolio` 已支持同一文件中的多个 `Stmt`，并按 `Stmt/Id` 与账户 IBAN 分别审计。
 
 版本边界原则：
 
@@ -110,7 +110,7 @@ camt.053 银行对账单（账户 IBAN / DBIT / CRDT / RvslInd）
 - 期望期末余额和实际差额；
 - `BALANCED`、`MISMATCH` 或 `INCOMPLETE` 状态。
 
-余额审计还检查账户 IBAN、余额币种和流水币种。当前版本一个文件只处理一个对账单账户，出现多个账户时返回 `MULTI_ACCOUNT_STATEMENT_UNSUPPORTED`。
+余额审计还检查账户 IBAN、余额币种和流水币种。单账户 `audit` 遇到多个账户时返回 `MULTI_ACCOUNT_STATEMENT_UNSUPPORTED`；多账户场景使用 `audit-portfolio`。
 
 ### 2.5 重复流水检测
 
@@ -121,6 +121,31 @@ camt.053 银行对账单（账户 IBAN / DBIT / CRDT / RvslInd）
 ```
 
 同一六元组出现两次及以上时，输出重复组和出现次数。金额、币种或借贷方向不同的相近记录不会被合并。重复流水是人工复核信号，不直接推断银行一定重复入账。
+
+### 2.6 多状态报告时间线
+
+状态时间线接收一份 `pain.001` / `pacs.008` 付款来源，以及任意数量的 `pain.002` / `pacs.002` 状态报告。系统按 `GrpHdr/CreDtTm` 排序，按 `EndToEndId` 合并事件，并输出：
+
+- 每笔付款的完整状态历史；
+- 最新状态和最终分类；
+- `AWAITING_STATUS`、`IN_PROGRESS`、`SETTLED`、`REJECTED`、`STATUS_CONFLICT`、`UNKNOWN_STATUS`；
+- 重复状态消息、重复事件、同一时刻冲突、终态回退、未知状态和孤立状态；
+- 状态报告原始金额、币种与付款记录不一致；
+- 拒绝原因码和下一步用户动作。
+
+终态 `ACSC` 或 `RJCT` 之后如果出现不同状态，系统不会覆盖旧状态，而是进入冲突状态，避免把历史不一致的数据误判为已结算。
+
+### 2.7 多账户对账单审计
+
+`audit-portfolio` 以 `Stmt/Id` 和账户 IBAN 为分组键，分别计算每个 `Stmt` 的：
+
+- 期初、期末余额；
+- 借贷发生额与净变动；
+- 期望期末和实际差额；
+- 完全重复流水；
+- 账户级诊断。
+
+不同 `Stmt` 中的相同 `EndToEndId` 不会被误判为重复流水；同一个 `Stmt` 内的完全重复记录仍会报告。相同账户可以出现在多个 `Stmt` 中，每个账期分别核对。
 
 ## 3. 对账单余额与重复流水案例
 
@@ -258,7 +283,56 @@ TX-PARTIAL-REFUND | 60.00 EUR | status=ACSC | account=DEBTOR | net=40.00 | rever
 - 账户不匹配：追查账户归属或报告错配；
 - 孤立状态/流水：追查原始付款或报告归属。
 
-## 5. 独立工程范围
+## 5. 状态时间线与多账户审计案例
+
+### 5.1 状态时间线
+
+输入：
+
+```text
+fixtures/timeline_pain001.xml
+fixtures/timeline_status_1.xml
+fixtures/timeline_status_2.xml
+```
+
+运行：
+
+```bash
+moon run cmd/main -- timeline \
+  fixtures/timeline_pain001.xml \
+  fixtures/timeline_status_1.xml \
+  fixtures/timeline_status_2.xml
+```
+
+关键结果：
+
+```text
+TL-TX-A | 100.00 EUR | latest=ACSC | state=SETTLED
+TL-TX-B | 50.00 EUR  | latest=RJCT | state=REJECTED
+```
+
+如果 `ACSC` 之后又收到 `PDNG`，输出包含 `TERMINAL_STATUS_REGRESSION` 并进入 `STATUS_CONFLICT`。
+
+### 5.2 多账户审计
+
+输入：`fixtures/multi_account_camt053.xml`
+
+```bash
+moon run cmd/main -- audit-portfolio fixtures/multi_account_camt053.xml
+```
+
+关键结果：
+
+```text
+STMT-DEBTOR   BALANCED
+STMT-CREDITOR BALANCED
+Statements: 2
+Result: VALID
+```
+
+详细规则和用户动作见 `docs/status-timeline-cases.md` 与 `docs/multi-account-audit.md`。
+
+## 6. 独立工程范围
 
 本项目的独立范围不是“字段存在性检查”，而是：
 
@@ -270,7 +344,10 @@ TX-PARTIAL-REFUND | 60.00 EUR | status=ACSC | account=DEBTOR | net=40.00 | rever
 - 借贷方向、`RvslInd` 和净入账金额计算；
 - 期初/期末余额、借贷发生额、净变动和期末差额核对；
 - 余额类型、账户范围、币种一致性和精确重复流水检查；
+- 多份状态报告按时间合并、最终状态解析和冲突/回退检测；
+- `pain.001` 与 `pacs.008` 两类付款来源；
+- 多 `Stmt`、多账户对账单分组审计；
 - 付款、状态、对账单三方关联；
 - 生命周期分类、退回/冲正识别和用户动作映射；
 - text/JSON/Markdown 输出；
-- 15 个固定样例、67 个测试和 CI。
+- 20 个固定样例、100 个测试和 CI。
