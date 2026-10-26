@@ -71,6 +71,18 @@ fn print_status_timeline(
 }
 
 ///|
+fn print_return_ledger(
+  report : @moonpay.ReturnLedgerReport,
+  format : String,
+) -> Unit {
+  match format {
+    "json" => println(report.to_json())
+    "markdown" | "md" => println(report.to_markdown())
+    _ => println(report.to_text())
+  }
+}
+
+///|
 fn read_format_and_paths(
   args : Array[String],
   start_index : Int,
@@ -110,6 +122,7 @@ fn main {
     println("  \{program} audit <camt.053.xml> [--format ...]")
     println("  \{program} audit-portfolio <camt.053.xml> [--format ...]")
     println("  \{program} timeline <pain.001|pacs.008.xml> [status.xml ...] [--format ...]")
+    println("  \{program} return-ledger <pain.001|pacs.008.xml> <camt.053.xml> [camt.053.xml ...] [--format ...]")
     println("  \{program} --list-rules")
     return
   }
@@ -208,6 +221,27 @@ fn main {
       }
       let report = @moonpay.status_timeline_report(payment_xml, status_xmls)
       print_status_timeline(report, format)
+    } catch {
+      @fs.IOError(message) => println("Cannot read input: \{message}")
+      @moonpay.XmlParseError(message) => println("Invalid XML: \{message}")
+      _ => println("MoonPay Flow error")
+    }
+    return
+  }
+  if args[1] == "return-ledger" {
+    let (format, paths) = read_format_and_paths(args, 2)
+    if paths.length() < 2 {
+      println("return-ledger requires a pain.001 or pacs.008 file and at least one camt.053 file.")
+      return
+    }
+    try {
+      let payment_xml = @fs.read_file_to_string(paths[0])
+      let statement_xmls : Array[String] = []
+      for i = 1; i < paths.length(); i = i + 1 {
+        statement_xmls.push(@fs.read_file_to_string(paths[i]))
+      }
+      let report = @moonpay.return_ledger_report(payment_xml, statement_xmls)
+      print_return_ledger(report, format)
     } catch {
       @fs.IOError(message) => println("Cannot read input: \{message}")
       @moonpay.XmlParseError(message) => println("Invalid XML: \{message}")

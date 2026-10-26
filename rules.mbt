@@ -79,5 +79,15 @@ pub fn rule_catalog() -> Array[RuleInfo] {
     { code: "STATUS_TIMELINE_CONFLICT", description: "Conflicting statuses with the same timestamp require review." },
     { code: "STATUS_AMOUNT_MISMATCH", description: "Status report original amount must match the payment amount." },
     { code: "STATUS_CURRENCY_MISMATCH", description: "Status report original currency must match the payment currency." },
+    { code: "PAYMENT_REVERSAL_APPLIED", description: "A reversal entry is linked to an original payment posting." },
+    { code: "REFUND_REVERSAL_APPLIED", description: "A reversal entry is linked to a refund posting." },
+    { code: "REVERSAL_TARGET_AMBIGUOUS", description: "A reversal has multiple possible prior entries." },
+    { code: "REVERSAL_REFERENCE_NOT_FOUND", description: "A reversal names an original entry not present in the statement history." },
+    { code: "REVERSAL_TARGET_NOT_FOUND", description: "A reversal cannot be linked to any prior payment or refund." },
+    { code: "RETURN_HISTORY_INCOMPLETE", description: "Original payment posting is outside the provided statement history." },
+    { code: "PAYMENT_POSTING_INCOMPLETE", description: "Observed payment postings are less than the declared payment amount." },
+    { code: "PAYMENT_AMOUNT_MISMATCH", description: "Observed payment postings exceed the declared payment amount." },
+    { code: "REFUND_OVERPAYMENT", description: "Effective refunds exceed the effective payment amount." },
+    { code: "ACCOUNT_UNMATCHED", description: "Statement account does not match the payment debtor or creditor." },
   ]
 }

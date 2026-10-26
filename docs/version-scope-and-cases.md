@@ -10,7 +10,7 @@
 | `pain.002` | `pain.002.001.03` | 原报文 ID、原交易 ID、交易状态、原因码、重复状态、多报告时间线 | 全部状态原因语义、批量汇总模板 |
 | `pacs.008` | `pacs.008.001.08` | 交易 ID、结算金额、币种 | 代理行链、费用承担、端到端路由、UETR 全链路 |
 | `pacs.002` | `pacs.002.001.10` | 原报文 ID、原交易 ID、交易状态、原因码、多报告时间线 | 全部状态原因语义、批量汇总模板 |
-| `camt.053` | `camt.053.001.08` | 对账条目、账户 IBAN、金额、币种、借贷方向、冲正标记、期初/期末余额、发生额汇总、精确重复流水、多 `Stmt` 分账户审计 | 账期、利息、复杂交易明细 |
+| `camt.053` | `camt.053.001.08` | 对账条目、账户 IBAN、金额、币种、借贷方向、冲正标记、入账日期、流水引用、期初/期末余额、发生额汇总、精确重复流水、多 `Stmt` 分账户审计、跨账期退回/冲正账本 | 利息、复杂交易明细、完整 XSD |
 
 单账户命令 `audit` 仍按一个对账单账户处理；`audit-portfolio` 已支持同一文件中的多个 `Stmt`，并按 `Stmt/Id` 与账户 IBAN 分别审计。
 
@@ -146,6 +146,25 @@ camt.053 银行对账单（账户 IBAN / DBIT / CRDT / RvslInd）
 - 账户级诊断。
 
 不同 `Stmt` 中的相同 `EndToEndId` 不会被误判为重复流水；同一个 `Stmt` 内的完全重复记录仍会报告。相同账户可以出现在多个 `Stmt` 中，每个账期分别核对。
+
+### 2.8 跨账期退回与冲正账本
+
+净额汇总不能证明某笔冲正作用于原始付款还是某笔退款。`return-ledger` 将流水建模为有方向的账本：
+
+- 原始付款；
+- 退款/退回贷记；
+- 原始付款冲正；
+- 退款冲正；
+- 无法关联的冲正。
+
+冲正目标按 `OrgnlNtryRef`、`OrgnlTxId`、`UETR`、唯一金额/币种/相反方向候选的顺序匹配。出现多个候选时返回歧义，不自动选择。
+
+历史完整性边界：
+
+- 只有观察到与付款金额一致的原始付款流水，才输出确定的 `PAID`、`PARTIALLY_RETURNED`、`FULLY_RETURNED` 或 `PAYMENT_REVERSED`；
+- 原始付款不在提供的账期内、付款流水合计不足或冲正目标不确定时，输出 `EVIDENCE_INCOMPLETE`；
+- 超额退款、目标歧义或借贷关系冲突输出 `CONFLICT`；
+- 此时 `postedPayment`、`effectiveRefund` 和 `remaining` 为 `null`，不根据净额推断退回程度。
 
 ## 3. 对账单余额与重复流水案例
 
@@ -332,7 +351,46 @@ Result: VALID
 
 详细规则和用户动作见 `docs/status-timeline-cases.md` 与 `docs/multi-account-audit.md`。
 
-## 6. 独立工程范围
+## 6. 跨账期退回与冲正案例
+
+输入：
+
+```text
+fixtures/returns_pain001.xml
+fixtures/returns_day1.xml
+fixtures/returns_day2_partial.xml
+fixtures/returns_day3_final.xml
+fixtures/returns_day4_refund_reversal.xml
+```
+
+运行：
+
+```bash
+moon run cmd/main -- return-ledger \
+  fixtures/returns_pain001.xml \
+  fixtures/returns_day1.xml \
+  fixtures/returns_day2_partial.xml \
+  fixtures/returns_day3_final.xml \
+  fixtures/returns_day4_refund_reversal.xml
+```
+
+关键结果：
+
+```text
+2026-10-01  DBIT 100.00  原始付款
+2026-10-02  CRDT  20.00  部分退款
+2026-10-03  CRDT  80.00  补足退款
+2026-10-04  DBIT  80.00  RvslInd=true -> 冲正 RET-80
+
+有效付款 100.00
+有效退款  20.00
+剩余金额  80.00
+state=PARTIALLY_RETURNED
+```
+
+如果只提供 2026-10-02 的退款流水，输出 `EVIDENCE_INCOMPLETE`，不会误判为部分退回或全额退回。完整规则见 `docs/return-ledger-cases.md`。
+
+## 7. 独立工程范围
 
 本项目的独立范围不是“字段存在性检查”，而是：
 
@@ -347,7 +405,9 @@ Result: VALID
 - 多份状态报告按时间合并、最终状态解析和冲突/回退检测；
 - `pain.001` 与 `pacs.008` 两类付款来源；
 - 多 `Stmt`、多账户对账单分组审计；
+- 跨账期流水引用、原始付款、退款和冲正的有向关联账本；
+- 历史不完整、目标歧义和超额退款边界；
 - 付款、状态、对账单三方关联；
 - 生命周期分类、退回/冲正识别和用户动作映射；
 - text/JSON/Markdown 输出；
-- 20 个固定样例、100 个测试和 CI。
+- 25 个固定样例、112 个测试、82 条规则和 CI。

@@ -14,13 +14,14 @@ MoonBit ISO 20022 payment lifecycle validator and reconciliation toolkit.
 - Multi-report payment status timeline in `status_timeline.mbt`
 - Bank statement balance and duplicate audit in `statement_audit.mbt`
 - Per-account statement portfolio audit in `statement_portfolio.mbt`
+- Cross-period refund and reversal ledger in `return_ledger.mbt`
 - File input through `moonbitlang/x/fs`
 - CLI in `cmd/main`
-- 100 unit tests and 20 fixture messages
+- 112 unit tests and 25 fixture messages
 
 ## Status
 
-Version: 0.7.0
+Version: 0.8.0
 
 Current support: `pain.001`, `pain.002`, `pacs.008`, `pacs.002` and `camt.053`.
 
@@ -45,6 +46,7 @@ moon run cmd/main -- audit fixtures/balance_mismatch_camt053.xml --format json
 moon run cmd/main -- audit fixtures/duplicate_camt053.xml --format markdown
 moon run cmd/main -- audit-portfolio fixtures/multi_account_camt053.xml
 moon run cmd/main -- timeline fixtures/timeline_pain001.xml fixtures/timeline_status_1.xml fixtures/timeline_status_2.xml
+moon run cmd/main -- return-ledger fixtures/returns_pain001.xml fixtures/returns_day1.xml fixtures/returns_day2_partial.xml fixtures/returns_day3_final.xml fixtures/returns_day4_refund_reversal.xml
 ```
 
 ## Rules
@@ -76,8 +78,12 @@ moon run cmd/main -- timeline fixtures/timeline_pain001.xml fixtures/timeline_st
 - `audit-portfolio` groups entries and balances by both `Stmt/Id` and account IBAN, so one camt.053 file can contain multiple statements.
 - `timeline` merges any number of `pain.002` / `pacs.002` reports in chronological order and supports `pain.001` or `pacs.008` as the payment source.
 - Status timelines detect duplicate message IDs, duplicate events, same-time conflicting states, rejected/settled status regression, unknown status codes, orphan statuses, and original amount/currency mismatches.
-- The rule catalog contains 72 queryable checks through `--list-rules`.
-- Version boundaries and feature examples are documented in `docs/version-scope-and-cases.md`, `docs/statement-audit-cases.md`, `docs/status-timeline-cases.md` and `docs/multi-account-audit.md`.
+- The rule catalog contains 82 queryable checks through `--list-rules`.
+- `return-ledger` links each reversal to a prior payment or refund using `OrgnlNtryRef`, `OrgnlTxId`, `UETR`, or a unique amount/currency/direction candidate.
+- Refund and reversal states are only finalized when the original payment posting is present in the provided statement history.
+- If the original posting is outside the supplied periods or a reversal target is ambiguous, the result is `EVIDENCE_INCOMPLETE` or `CONFLICT`; `postedPayment`, `effectiveRefund` and `remaining` are not guessed from net amount.
+- Cross-day partial returns, final refunds and refund reversals are covered by fixed fixtures and the `return-ledger` CLI.
+- Version boundaries and feature examples are documented in `docs/version-scope-and-cases.md`, `docs/statement-audit-cases.md`, `docs/status-timeline-cases.md`, `docs/multi-account-audit.md` and `docs/return-ledger-cases.md`.
 
 ## License
 

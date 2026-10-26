@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.08">
+  <BkToCstmrStmt>
+    <GrpHdr><MsgId>RETURNS-DAY-3</MsgId><CreDtTm>2026-10-03T18:00:00Z</CreDtTm></GrpHdr>
+    <Stmt>
+      <Id>RET-STMT-D3</Id>
+      <Acct><Id><IBAN>DE89370400440532013000</IBAN></Id></Acct>
+      <Ntry>
+        <NtryRef>RET-80</NtryRef>
+        <BookgDt><Dt>2026-10-03</Dt></BookgDt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Amt Ccy="EUR">80.00</Amt>
+        <NtryDtls><TxDtls><Refs><EndToEndId>TX-RET</EndToEndId><TxId>TXID-RET-80</TxId><UETR>11111111-1111-4111-8111-111111111111</UETR></Refs></TxDtls></NtryDtls>
+      </Ntry>
+    </Stmt>
+  </BkToCstmrStmt>
+</Document>

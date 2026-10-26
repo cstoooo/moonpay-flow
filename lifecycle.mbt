@@ -1,6 +1,12 @@
 ///|
 pub struct StatementRecord {
   statement_id : String?
+  entry_reference : String?
+  transaction_id : String?
+  uetr : String?
+  original_entry_reference : String?
+  original_transaction_id : String?
+  booking_date : String?
   end_to_end_id : String
   amount : Decimal
   currency : String
@@ -69,6 +75,12 @@ pub fn statement_records(xml_text : String) -> Array[StatementRecord] raise XmlP
   let mut statement_id : String? = None
   let mut account_iban : String? = None
   let mut in_entry = false
+  let mut current_entry_reference : String? = None
+  let mut current_transaction_id : String? = None
+  let mut current_uetr : String? = None
+  let mut current_original_entry_reference : String? = None
+  let mut current_original_transaction_id : String? = None
+  let mut current_booking_date : String? = None
   let mut current_id : String? = None
   let mut current_amount : String? = None
   let mut current_currency : String? = None
@@ -89,6 +101,12 @@ pub fn statement_records(xml_text : String) -> Array[StatementRecord] raise XmlP
           current_currency = None
           current_direction = ""
           current_reversal = false
+          current_entry_reference = None
+          current_transaction_id = None
+          current_uetr = None
+          current_original_entry_reference = None
+          current_original_transaction_id = None
+          current_booking_date = None
         }
         if path_equals(
           path,
@@ -120,6 +138,55 @@ pub fn statement_records(xml_text : String) -> Array[StatementRecord] raise XmlP
           ["Document", "BkToCstmrStmt", "Stmt", "Ntry", "Amt"],
         ) {
           current_amount = Some(content)
+        } else if path_equals(
+          path,
+          ["Document", "BkToCstmrStmt", "Stmt", "Ntry", "NtryRef"],
+        ) {
+          current_entry_reference = Some(content)
+        } else if path_equals(
+          path,
+          ["Document", "BkToCstmrStmt", "Stmt", "Ntry", "AcctSvcrRef"],
+        ) {
+          if current_entry_reference is None {
+            current_entry_reference = Some(content)
+          }
+        } else if path_equals(
+          path,
+          ["Document", "BkToCstmrStmt", "Stmt", "Ntry", "BookgDt", "Dt"],
+        ) || path_equals(
+          path,
+          ["Document", "BkToCstmrStmt", "Stmt", "Ntry", "BookgDt", "DtTm"],
+        ) || path_equals(
+          path,
+          ["Document", "BkToCstmrStmt", "Stmt", "Ntry", "ValDt", "Dt"],
+        ) {
+          current_booking_date = Some(content)
+        } else if path_equals(
+          path,
+          ["Document", "BkToCstmrStmt", "Stmt", "Ntry", "OrgnlNtryRef"],
+        ) || path_equals(
+          path,
+          ["Document", "BkToCstmrStmt", "Stmt", "Ntry", "NtryDtls", "TxDtls", "Refs", "OrgnlNtryRef"],
+        ) {
+          current_original_entry_reference = Some(content)
+        } else if path_equals(
+          path,
+          ["Document", "BkToCstmrStmt", "Stmt", "Ntry", "OrgnlTxId"],
+        ) || path_equals(
+          path,
+          ["Document", "BkToCstmrStmt", "Stmt", "Ntry", "NtryDtls", "TxDtls", "Refs", "OrgnlTxId"],
+        ) {
+          current_original_transaction_id = Some(content)
+        } else if path_equals(
+          path,
+          ["Document", "BkToCstmrStmt", "Stmt", "Ntry", "NtryDtls", "TxDtls", "Refs", "TxId"],
+        ) {
+          current_transaction_id = Some(content)
+        } else if path_equals(
+          path,
+          ["Document", "BkToCstmrStmt", "Stmt", "Ntry", "NtryDtls", "TxDtls", "Refs", "UETR"],
+        ) {
+          current_uetr = Some(content)
         } else if path_equals(
           path,
           ["Document", "BkToCstmrStmt", "Stmt", "Ntry", "CdtDbtInd"],
@@ -158,6 +225,12 @@ pub fn statement_records(xml_text : String) -> Array[StatementRecord] raise XmlP
                         Some(amount) =>
                           records.push({
                             statement_id,
+                            entry_reference: current_entry_reference,
+                            transaction_id: current_transaction_id,
+                            uetr: current_uetr,
+                            original_entry_reference: current_original_entry_reference,
+                            original_transaction_id: current_original_transaction_id,
+                            booking_date: current_booking_date,
                             end_to_end_id: id,
                             amount,
                             currency,

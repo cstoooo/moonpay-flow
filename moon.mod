@@ -1,5 +1,5 @@
 name = "cstoooo/moonpay_flow"
-version = "0.7.0"
+version = "0.8.0"
 readme = "README.md"
 repository = "https://github.com/cstoooo/moonpay-flow"
 license = "Apache-2.0"
