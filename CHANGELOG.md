@@ -2,6 +2,11 @@
 
 All notable changes are documented here. The project follows semantic versioning for its public MoonBit API.
 
+## 0.8.2
+
+- Align README, Mooncakes documentation and GitHub CI descriptions.
+- No code or API changes.
+
 ## 0.8.1
 
 - Add a complete acceptance-oriented README with installation, CLI, library API, architecture, quality and limitation information.

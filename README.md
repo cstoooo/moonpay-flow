@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/cstoooo/moonpay-flow/actions/workflows/ci.yml/badge.svg)](https://github.com/cstoooo/moonpay-flow/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-[![Mooncakes](https://img.shields.io/badge/Mooncakes-0.8.1-blue.svg)](https://mooncakes.io/docs/cstoooo/moonpay_flow@0.8.1)
+[![Mooncakes](https://img.shields.io/badge/Mooncakes-0.8.2-blue.svg)](https://mooncakes.io/docs/cstoooo/moonpay_flow@0.8.2)
 
 MoonPay Flow is a MoonBit-native ISO 20022 validation, status timeline, statement audit and reconciliation toolkit. It connects payment instructions, status reports and bank statement postings while making incomplete evidence explicit.
 
@@ -20,7 +20,7 @@ MoonPay Flow is a MoonBit-native ISO 20022 validation, status timeline, statemen
 ## Install
 
 ```bash
-moon add cstoooo/moonpay_flow@0.8.1
+moon add cstoooo/moonpay_flow@0.8.2
 ```
 
 Add the package alias to the consuming package's `moon.pkg`:
@@ -31,7 +31,7 @@ import {
 }
 ```
 
-Mooncakes documentation: <https://mooncakes.io/docs/cstoooo/moonpay_flow@0.8.1>
+Mooncakes documentation: <https://mooncakes.io/docs/cstoooo/moonpay_flow@0.8.2>
 
 ## Quick start
 

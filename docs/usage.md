@@ -8,7 +8,7 @@
 ## Install the library
 
 ```bash
-moon add cstoooo/moonpay_flow@0.8.1
+moon add cstoooo/moonpay_flow@0.8.2
 ```
 
 Add the package alias to `moon.pkg`:
@@ -22,7 +22,7 @@ import {
 Mooncakes documentation:
 
 ```text
-https://mooncakes.io/docs/cstoooo/moonpay_flow@0.8.1
+https://mooncakes.io/docs/cstoooo/moonpay_flow@0.8.2
 ```
 
 ## Run the CLI from the repository

@@ -8,7 +8,7 @@ This document maps the final repository state to the evaluation criteria in the 
 | --- | --- |
 | Working MoonBit implementation | 10 source modules and a MoonBit CLI under `cmd/main` |
 | Reproducible tests | 112 tests, 25 fixtures, `scripts/check.sh` |
-| Released package | Mooncakes `cstoooo/moonpay_flow@0.8.1` |
+| Released package | Mooncakes `cstoooo/moonpay_flow@0.8.2` |
 | Declared direction | ISO 20022 validation, status timeline, statement audit and return/reversal reconciliation |
 | Future maintainability | Version boundaries, architecture, changelog and test matrix documented |
 
@@ -41,7 +41,7 @@ This document maps the final repository state to the evaluation criteria in the 
 | Requirement | Evidence |
 | --- | --- |
 | MoonBit-native library | Public MoonBit API and package metadata |
-| Package-manager installation | `moon add cstoooo/moonpay_flow@0.8.1` |
+| Package-manager installation | `moon add cstoooo/moonpay_flow@0.8.2` |
 | Generated Mooncakes documentation | Mooncakes module page |
 | MoonBit CLI usage | `moon run cmd/main -- ...` |
 | Compatible dependency use | `moonbitlang/x/fs` |
