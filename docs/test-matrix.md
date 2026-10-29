@@ -90,7 +90,9 @@ GitHub Actions runs:
 
 ```text
 moon update
-./scripts/check.sh
+moon check
+moon test
+moon run cmd/main -- fixtures/valid_pain001.xml
 ```
 
-The script executes `moon check`, `moon test`, validation examples, reconciliation, lifecycle, balance audit, multi-account audit, status timeline and return-ledger examples.
+The local acceptance script additionally runs reconciliation, lifecycle, balance audit, multi-account audit, status timeline and return-ledger examples.

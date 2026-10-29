@@ -148,7 +148,7 @@ The project implements common fields and explicit business rules, not complete I
 - Tests: 112 passing.
 - Fixtures: 25 synthetic ISO 20022 messages.
 - Rule catalog: 82 codes.
-- CI: GitHub Actions runs the full `scripts/check.sh` acceptance suite.
+- CI: GitHub Actions runs `moon check`, `moon test` and a validation example.
 - License: Apache-2.0.
 - Data policy and security reporting: [SECURITY.md](SECURITY.md).
 - Contribution rules: [CONTRIBUTING.md](CONTRIBUTING.md).
