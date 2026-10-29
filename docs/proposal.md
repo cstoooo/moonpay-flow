@@ -65,6 +65,7 @@ MoonPay Flow：MoonBit 实现的 ISO 20022 支付报文解析、校验与对账�
 - 十进制处理：项目自研定点 Decimal 模块（`decimal.mbt`）
 - 文件读取：`moonbitlang/x/fs`
 - 测试：`moon test`
+- 当前发布版本：`0.8.1`
 - 测试数量：112 个单元测试
 - 云端检查：GitHub Actions
 
@@ -77,6 +78,7 @@ MoonPay Flow：MoonBit 实现的 ISO 20022 支付报文解析、校验与对账�
 - 单元测试通过
 - CLI 可以运行并输出校验、状态时间线、多账户余额审计和跨账期退回/冲正账本结果
 - 使用 Apache-2.0 许可证
+- 提供安装、CLI、库 API、架构、测试矩阵和验收清单文档
 
 ## 后续
 
